@@ -419,6 +419,7 @@ int main(int argc, char *argv[]) {
 
 void add(int instr);
 void and(int instr);
+void branch(int isntr);
 void clearNZP(void);
 void setNZP(int num);
 int procTwosComp(int val, int nbits);
@@ -449,6 +450,7 @@ void process_instruction() {
     break;
 
   case BR:
+    branch(instr);
     break;
 
   case JMP_RET:
@@ -587,5 +589,29 @@ void and(int instr) {
   NEXT_LATCHES.REGS[dr] = Low16bits(res);
   setNZP(res);
   NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
+}
+
+/* BR instruction simulation */
+void branch(int instr) {
+  int n = (instr & 0x0800);
+  int z = (instr & 0x0400);
+  int p = (instr & 0x0200);
+  int offset = procTwosComp((instr & 0x01FF), 9);
+
+  /* branch if any CC's are met */
+  if (((instr & 0x0800) && CURRENT_LATCHES.N) || ((instr & 0x0400) && CURRENT_LATCHES.Z)
+    || ((instr & 0x0200) && CURRENT_LATCHES.P)) {
+    NEXT_LATCHES.PC = CURRENT_LATCHES.PC + (offset);
+  }
+
+  /* unconditional branch (BR or BRnzp) */
+  else if ((!(instr & 0x0800) && !(instr & 0x0400) && !(instr & 0x0200))
+    || ((instr & 0x0800) && (instr & 0x0400) && (instr & 0x0200))) {
+    NEXT_LATCHES.PC = CURRENT_LATCHES.PC + (offset);
+  }
+
+  else {
+    NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
+  }
 }
 
