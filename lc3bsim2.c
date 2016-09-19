@@ -418,6 +418,7 @@ int main(int argc, char *argv[]) {
 #define TRAP      15
 
 void add(int instr);
+void and(int instr);
 void clearNZP(void);
 void setNZP(int num);
 int procTwosComp(int val, int nbits);
@@ -444,6 +445,7 @@ void process_instruction() {
     break;
 
   case AND:
+    and(instr);
     break;
 
   case BR:
@@ -564,6 +566,26 @@ void add(int instr) {
 
   NEXT_LATCHES.REGS[dr] = Low16bits(sum);
   setNZP(sum);
+  NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
+}
+
+/* AND instruction simulation */
+void and(int instr) {
+  int dr, sr1, sr2, imm, res;
+
+  dr = (instr & 0x0E00) >> 9;
+  sr1 = (instr & 0x01C0) >> 6;
+
+  if (!(0x0020 & instr)) {    /* if steering bit is 0 */
+    sr2 = (instr & 0x0007);
+    res = CURRENT_LATCHES.REGS[sr1] & CURRENT_LATCHES.REGS[sr2];
+  } else {
+    imm = procTwosComp((instr & 0x001F), 5);
+    res = CURRENT_LATCHES.REGS[sr1] & imm;
+  }
+
+  NEXT_LATCHES.REGS[dr] = Low16bits(res);
+  setNZP(res);
   NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
 }
 

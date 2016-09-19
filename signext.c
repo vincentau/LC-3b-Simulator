@@ -110,7 +110,7 @@ int procTwosComp(int val, int nbits) {
 	return val;
 }
 
-/* ADD instruction processing */
+/* ADD instruction simulation */
 void add(int instr) {
 	clearNZP();
 	int dr, sr1, sr2, imm, sum;
@@ -135,4 +135,9 @@ void add(int instr) {
 	/* Set condition codes here */
 	NEXT_LATCHES.REGS[dr] = Low16bits(sum);
 	printf("%d\n", NEXT_LATCHES.REGS[dr]);
+}
+
+/* AND intruction simulation */
+void and(int instr) {
+	
 }
