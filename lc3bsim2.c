@@ -1,12 +1,6 @@
 /*
-    Remove all unnecessary lines (including this one)
-    in this comment.
-    REFER TO THE SUBMISSION INSTRUCTION FOR DETAILS
-
-    Name 1: Full name of the first partner
-    Name 2: Full name of the second partner
-    UTEID 1: UT EID of the first partner
-    UTEID 2: UT EID of the second partner
+    Name 1: Joshua Smith
+    UTEID 1: jds5228
 */
 
 /***************************************************************/
@@ -425,8 +419,8 @@ int main(int argc, char *argv[]) {
 
 void add(int instr);
 void clearNZP(void);
-void setNZP(void);
-void toNextState(void);
+void setNZP(int num);
+int procTwosComp(int val, int nbits);
 
 void process_instruction() {
   /*  function: process_instruction
@@ -438,13 +432,11 @@ void process_instruction() {
    *       -Update NEXT_LATCHES
    */
 
-  toNextState();
-
   int iLowB = Low8Bits(MEMORY[CURRENT_LATCHES.PC / 2][0]);
   int iHighB = Low8Bits(MEMORY[CURRENT_LATCHES.PC / 2][1]);
   int instr = Low16bits((iHighB << 8) | iLowB);
 
-  opcode = ((instr & 0xF000) >> 12);
+  int opcode = ((instr & 0xF000) >> 12);
 
   switch (opcode) {
   case ADD:
@@ -498,6 +490,10 @@ void clearNZP() {
 
 /* Sets the proper NZP bit given the value num */
 void setNZP(int num) {
+  NEXT_LATCHES.N = 0;
+  NEXT_LATCHES.Z = 0;
+  NEXT_LATCHES.P = 0;
+
   if (num < 0) {
     NEXT_LATCHES.N = 1;
     return;
@@ -514,38 +510,45 @@ void setNZP(int num) {
   }
 }
 
-void toNextState() {
-  NEXT_LATCHES.N=CURRENT_LATCHES.N;
-  NEXT_LATCHES.Z=CURRENT_LATCHES.Z;
-  NEXT_LATCHES.P=CURRENT_LATCHES.P;
-  NEXT_LATCHES.PC=CURRENT_LATCHES.PC + 2;
-
-  int i;
-  for(i = 0; i < LC_3b_REGS; i++)
-    NEXT_LATCHES.REGS[i]=CURRENT_LATCHES.REGS[i];
-}
-
-/* sign extend an integer to 16 bits --NOT SURE IF NECESSARY */
-int sext(int num, int nbits) {
+/* takes 2's complement of constant value if necessary */
+int procTwosComp(int val, int nbits) {
   switch (nbits) {
-  case 4:
-    num &= 0x000F;
-    if (0x0008 & num)
-      num = Low16bits(num |= 0xFFF0);
+  case 5:   /* imm5 */
+    if (val > 15) {
+      val = 16 - (val & 0xF);
+      val = -val;
+    }
     break;
 
-  case 5:
-    num &= 0x001F;
-    if (0x0010 & num)
-      num = Low16bits(num |= 0xFFE0);
+  case 6:   /* boffset6 and offset6 */
+    if (val > 31) {
+      val = 32 - (val & 0x1F);
+      val = -val;
+    }
     break;
 
+  case 9:   /* PCoffset9 */
+    if (val > 255) {
+      val = 256 - (val & 0xFF);
+      val = -val;
+    }
+    break;
+
+  case 11:  /* PCoffset11 */
+    if (val > 1023) {
+      val = 1024 - (val & 0x3FF);
+      val = -val;
+    }
+    break;
+
+  default:
+    break;
   }
+  return val;
 }
 
 /* ADD instruction processing */
 void add(int instr) {
-  clearNZP();
   int dr, sr1, sr2, imm, sum;
 
   dr = (instr & 0x0E00) >> 9;
@@ -555,11 +558,12 @@ void add(int instr) {
     sr2 = (instr & 0x0007);
     sum = CURRENT_LATCHES.REGS[sr1] + CURRENT_LATCHES.REGS[sr2];
   } else {
-    imm = (instr & 0x001F);
-    sum = CURRENT_LATCHES.REGS[sr1] + sext(imm, 5);
+    imm = procTwosComp((instr & 0x001F), 5);
+    sum = CURRENT_LATCHES.REGS[sr1] + imm;
   }
 
-  setNZP(sum);
   NEXT_LATCHES.REGS[dr] = Low16bits(sum);
+  setNZP(sum);
+  NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
 }
 
