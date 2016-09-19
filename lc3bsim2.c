@@ -438,7 +438,7 @@ void process_instruction() {
    *       -Update NEXT_LATCHES
    */
 
-   toNextState();
+  toNextState();
 
   int iLowB = Low8Bits(MEMORY[CURRENT_LATCHES.PC / 2][0]);
   int iHighB = Low8Bits(MEMORY[CURRENT_LATCHES.PC / 2][1]);
@@ -525,21 +525,38 @@ void toNextState() {
     NEXT_LATCHES.REGS[i]=CURRENT_LATCHES.REGS[i];
 }
 
+/* sign extend an integer to 16 bits --NOT SURE IF NECESSARY */
+int sext(int num, int nbits) {
+  switch (nbits) {
+  case 4:
+    num &= 0x000F;
+    if (0x0008 & num)
+      num = Low16bits(num |= 0xFFF0);
+    break;
+
+  case 5:
+    num &= 0x001F;
+    if (0x0010 & num)
+      num = Low16bits(num |= 0xFFE0);
+    break;
+
+  }
+}
+
 /* ADD instruction processing */
 void add(int instr) {
   clearNZP();
-  int dr, sr1, sr2, imm, steer, sum;
+  int dr, sr1, sr2, imm, sum;
 
   dr = (instr & 0x0E00) >> 9;
   sr1 = (instr & 0x01C0) >> 6;
-  steer = (instr & 0x0020) >> 5;
 
-  if (!steer) {
+  if (!(0x0020 & instr)) {    /* if steering bit is 0 */
     sr2 = (instr & 0x0007);
     sum = CURRENT_LATCHES.REGS[sr1] + CURRENT_LATCHES.REGS[sr2];
   } else {
     imm = (instr & 0x001F);
-    sum = CURRENT_LATCHES.REGS[sr1] + imm;
+    sum = CURRENT_LATCHES.REGS[sr1] + sext(imm, 5);
   }
 
   setNZP(sum);
