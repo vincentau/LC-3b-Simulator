@@ -423,6 +423,10 @@ int main(int argc, char *argv[]) {
 #define STW       7
 #define TRAP      15
 
+void add(int instr);
+void clearNZP(void);
+void setNZP(void);
+void toNextState(void);
 
 void process_instruction() {
   /*  function: process_instruction
@@ -434,52 +438,111 @@ void process_instruction() {
    *       -Update NEXT_LATCHES
    */
 
+   toNextState();
+
   int iLowB = Low8Bits(MEMORY[CURRENT_LATCHES.PC / 2][0]);
   int iHighB = Low8Bits(MEMORY[CURRENT_LATCHES.PC / 2][1]);
-  int instr = Low16bits((iHighB << 8)|iLowB);
-
-  int opcode, dr, sr1, sr2, imm, offset;   
+  int instr = Low16bits((iHighB << 8) | iLowB);
 
   opcode = ((instr & 0xF000) >> 12);
 
   switch (opcode) {
-    case ADD:
-      break;
+  case ADD:
+    add(instr);
+    break;
 
-    case AND:
-      break;
+  case AND:
+    break;
 
-    case BR:
-      break;
+  case BR:
+    break;
 
-    case JMP_RET:
-      break;
+  case JMP_RET:
+    break;
 
-    case JSR:
-      break;
+  case JSR:
+    break;
 
-    case LDB:
-      break;
+  case LDB:
+    break;
 
-    case LDW:
-      break;
+  case LDW:
+    break;
 
-    case LEA:
-      break;
+  case LEA:
+    break;
 
-    case NOT_XOR:
-      break;
+  case NOT_XOR:
+    break;
 
-    case SHF:
-      break;
+  case SHF:
+    break;
 
-    case STB:
-      break;
+  case STB:
+    break;
 
-    case STW:
-      break;
+  case STW:
+    break;
 
-    case TRAP:
-      break;
+  case TRAP:
+    break;
   }
 }
+
+/* Sets NZP bits to 0 */
+void clearNZP() {
+  NEXT_LATCHES.N = 0;
+  NEXT_LATCHES.Z = 0;
+  NEXT_LATCHES.P = 0;
+}
+
+/* Sets the proper NZP bit given the value num */
+void setNZP(int num) {
+  if (num < 0) {
+    NEXT_LATCHES.N = 1;
+    return;
+  }
+
+  if (num == 0) {
+    NEXT_LATCHES.Z = 1;
+    return;
+  }
+
+  if (num > 0) {
+    NEXT_LATCHES.P = 1;
+    return;
+  }
+}
+
+void toNextState() {
+  NEXT_LATCHES.N=CURRENT_LATCHES.N;
+  NEXT_LATCHES.Z=CURRENT_LATCHES.Z;
+  NEXT_LATCHES.P=CURRENT_LATCHES.P;
+  NEXT_LATCHES.PC=CURRENT_LATCHES.PC + 2;
+
+  int i;
+  for(i = 0; i < LC_3b_REGS; i++)
+    NEXT_LATCHES.REGS[i]=CURRENT_LATCHES.REGS[i];
+}
+
+/* ADD instruction processing */
+void add(int instr) {
+  clearNZP();
+  int dr, sr1, sr2, imm, steer, sum;
+
+  dr = (instr & 0x0E00) >> 9;
+  sr1 = (instr & 0x01C0) >> 6;
+  steer = (instr & 0x0020) >> 5;
+
+  if (!steer) {
+    sr2 = (instr & 0x0007);
+    sum = CURRENT_LATCHES.REGS[sr1] + CURRENT_LATCHES.REGS[sr2];
+  } else {
+    imm = (instr & 0x001F);
+    sum = CURRENT_LATCHES.REGS[sr1] + imm;
+  }
+
+  setNZP(sum);
+  NEXT_LATCHES.REGS[dr] = Low16bits(sum);
+}
+
