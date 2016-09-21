@@ -399,9 +399,9 @@ int main(int argc, char *argv[]) {
    Begin your code here                  */
 
 /***************************************************************/
+
+/* All code below is original and was written by Joshua Smith */
 #define Low8Bits(x)   (x & 0x00FF)
-#define High8Bits(x)  (x & 0xFF00)
-#define Low4Bits(x)   (x & 0x000F)
 
 #define ADD       1
 #define AND       5
@@ -419,7 +419,17 @@ int main(int argc, char *argv[]) {
 
 void add(int instr);
 void and(int instr);
-void branch(int isntr);
+void branch(int instr);
+void jmp_ret(int instr);
+void jsr(int instr);
+void ldb(int instr);
+void ldw(int instr);
+void lea(int instr);
+void not_xor(int instr);
+void shf(int instr);
+void stb(int instr);
+void stw(int instr);
+void trap(int instr);
 void clearNZP(void);
 void setNZP(int num);
 int procTwosComp(int val, int nbits);
@@ -454,33 +464,43 @@ void process_instruction() {
     break;
 
   case JMP_RET:
+    jmp_ret(instr);
     break;
 
   case JSR:
+    jsr(instr);
     break;
 
   case LDB:
+    ldb(instr);
     break;
 
   case LDW:
+    ldw(instr);
     break;
 
   case LEA:
+    lea(instr);
     break;
 
   case NOT_XOR:
+    not_xor(instr);
     break;
 
   case SHF:
+    shf(instr);
     break;
 
   case STB:
+    stb(instr);
     break;
 
   case STW:
+    stw(instr);
     break;
 
   case TRAP:
+    trap(instr);
     break;
   }
 }
@@ -546,6 +566,7 @@ int procTwosComp(int val, int nbits) {
     break;
 
   default:
+  printf("Invalid number of bits\n");
     break;
   }
   return val;
@@ -593,25 +614,181 @@ void and(int instr) {
 
 /* BR instruction simulation */
 void branch(int instr) {
-  int n = (instr & 0x0800);
-  int z = (instr & 0x0400);
-  int p = (instr & 0x0200);
   int offset = procTwosComp((instr & 0x01FF), 9);
 
   /* branch if any CC's are met */
   if (((instr & 0x0800) && CURRENT_LATCHES.N) || ((instr & 0x0400) && CURRENT_LATCHES.Z)
     || ((instr & 0x0200) && CURRENT_LATCHES.P)) {
-    NEXT_LATCHES.PC = CURRENT_LATCHES.PC + (offset);
+    NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2 + (offset << 1);
   }
 
   /* unconditional branch (BR or BRnzp) */
   else if ((!(instr & 0x0800) && !(instr & 0x0400) && !(instr & 0x0200))
     || ((instr & 0x0800) && (instr & 0x0400) && (instr & 0x0200))) {
-    NEXT_LATCHES.PC = CURRENT_LATCHES.PC + (offset);
+    NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2 + (offset << 1);
   }
 
   else {
     NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
   }
+}
+
+/* JMP and RET instruction simulation */
+void jmp_ret(int instr) {
+  int baseR = (instr & 0x01C0) >> 6;
+  NEXT_LATCHES.PC = CURRENT_LATCHES.REGS[baseR];
+}
+
+/* JSR and JSRR instruction simulation */
+void jsr(int instr) {
+  int temp, baseR, offset;
+
+  /* store incremented PC in R7 */
+  temp = CURRENT_LATCHES.PC + 2;
+
+  if (!(instr & 0x0800)) { /* JSRR */
+    baseR = (instr & 0x01C0) >> 6;
+    NEXT_LATCHES.PC = CURRENT_LATCHES.REGS[baseR];
+  } else { /* JSR */
+    offset = procTwosComp((instr & 0x07FF), 11);
+    NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2 + (offset << 1);
+  }
+
+  NEXT_LATCHES.REGS[7] = temp;
+}
+
+/* LDB instruction */
+void ldb(int instr) {
+  int dr, baseR, offset, addr, temp;
+
+  dr = (instr & 0x0E00) >> 9;
+  baseR = (instr & 0x01C0) >> 6;
+  offset = procTwosComp((instr & 0x003F), 6);
+
+  addr = (CURRENT_LATCHES.REGS[baseR] + offset);
+  temp = (addr % 2 == 0) ? MEMORY[addr >> 1][0] : MEMORY[addr >> 1][1];
+
+  NEXT_LATCHES.REGS[dr] = Low16bits(temp);
+  setNZP(temp);
+  NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
+}
+
+/* LDW instruction */
+void ldw(int instr) {
+  int dr, baseR, offset, addr, temp;
+
+  dr = (instr & 0x0E00) >> 9;
+  baseR = (instr & 0x01C0) >> 6;
+  offset = procTwosComp((instr & 0x003F), 6);
+
+  addr = Low16bits((CURRENT_LATCHES.REGS[baseR] + (offset << 1)));
+  temp = MEMORY[addr >> 1][0] + (MEMORY[addr >> 1][1] << 8);
+
+  NEXT_LATCHES.REGS[dr] = Low16bits(temp);
+  setNZP(temp);
+  NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
+}
+
+/* LEA instruction */
+void lea(int instr) {
+  int dr, offset, temp;
+  NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
+
+  dr = (instr & 0x0E00) >> 9;
+  offset = procTwosComp((instr & 0x01FF), 9);
+  temp = NEXT_LATCHES.PC + (offset << 1);
+  NEXT_LATCHES.REGS[dr] = Low16bits(temp);
+}
+
+/* NOT and XOR instructions */
+void not_xor(int instr) {
+  int dr, sr1, sr2, imm, temp;
+
+  dr = (instr & 0x0E00) >> 9;
+  sr1 = (instr & 0x01C0) >> 6;
+
+  if (!(instr & 0x0020)) {
+    sr2 = instr & 0x0007;
+    temp = CURRENT_LATCHES.REGS[sr1] ^ CURRENT_LATCHES.REGS[sr2];
+  } else {
+    imm = procTwosComp((instr & 0x001F), 5);
+    temp = CURRENT_LATCHES.REGS[sr1] ^ imm;
+  }
+
+  NEXT_LATCHES.REGS[dr] = Low16bits(temp);
+  setNZP(temp);
+  NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
+}
+
+/* SHF instructions */
+void shf(int instr) {
+  int dr, sr, amount, temp;
+
+  dr = (instr & 0x0E00) >> 9;
+  sr = (instr & 0x01C0) >> 6;
+  amount = instr & 0x000F;
+
+  if (!(instr & 0x0010)) {
+    temp = CURRENT_LATCHES.REGS[sr] << amount;
+  }
+
+  else {
+    if (!(instr & 0x0020)) {
+      temp = CURRENT_LATCHES.REGS[sr] >> amount;
+    } else {
+      int msb = CURRENT_LATCHES.REGS[sr] & 0x8000;
+      temp = CURRENT_LATCHES.REGS[sr] >> amount;
+      temp |= msb;
+    }
+  }
+
+  setNZP(temp);
+  NEXT_LATCHES.REGS[dr] = Low16bits(temp);
+  NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
+}
+
+/* STB instruction */
+void stb(int instr) {
+  int sr, baseR, offset, addr, temp;
+
+  sr = (instr & 0x0E00) >> 9;
+  baseR = (instr & 0x01C0) >> 6;
+  offset = procTwosComp((instr & 0x003F), 6);
+
+  addr = CURRENT_LATCHES.REGS[baseR] + offset;
+  temp = CURRENT_LATCHES.REGS[sr] & 0x00FF;
+  MEMORY[addr >> 1][addr % 2] = temp;
+
+  setNZP(temp);
+  NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
+}
+
+/* STW instruction */
+void stw(int instr) {
+  int sr, baseR, offset, addr, temp;
+
+  sr = (instr & 0x0E00) >> 9;
+  baseR = (instr & 0x01C0) >> 6;
+  offset = procTwosComp((instr & 0x003F), 6);
+  printf("\n");
+  printf("SR: %d, baseR: %d, Offset: %d\n", sr, baseR, offset);
+
+  addr = CURRENT_LATCHES.REGS[baseR] + (offset << 1);
+  printf("Address: 0x%0.4X\n", addr);
+  temp = CURRENT_LATCHES.REGS[sr];
+  printf("Value to be stored: %d\n", temp);
+  printf("\n");
+  MEMORY[addr >> 1][0] = temp & 0x00FF;
+  MEMORY[addr >> 1][1] = (temp & 0xFF00) >> 8;
+
+  setNZP(temp);
+  NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
+}
+
+/* TRAP instruction */
+void trap(int instr) {
+  int vec = (instr & 0x00FF) << 1; /* the vector value is 0 extended and left shifted once */
+  NEXT_LATCHES.REGS[7] = CURRENT_LATCHES.PC + 2;
+  NEXT_LATCHES.PC = (MEMORY[vec][0] & 0x000F)|((MEMORY[vec][1] & 0x000F) << 8);
 }
 
