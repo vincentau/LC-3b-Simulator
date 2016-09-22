@@ -1,0 +1,50 @@
+	ADD		*- 2 regs
+			*- reg and constant
+			*- should set CC
+	AND 	*- 2 regs
+			*- reg and constant
+			*- should set CC
+	NOT		*- logical NOT of sr should be stored in dr
+			*- should set CC
+	XOR		*- 2 regs
+			*- reg and constant
+			*- constant x1F should act as NOT instruction
+			*- should set CC
+	BR		*- n
+			*- z
+			*- p
+			- nzp
+			- none
+			- others
+			*- PC should be incremented before adding constant
+	JMP		*- PC should be given contents of register
+			*- JMP R7 should be the same as RET
+	RET 	*- PC should be given contents of R7
+	JSR 	*- PC + 2 should be saved in R7
+			*- PC should equal PC + 2 + offset*2  
+	JSRR	- PC + 2 should be saved in R7
+			- PC should equal the contents of base register
+	LDB		- DR <- MEMORY[contents of baseR + offset]
+			*- should set CC
+	LDW		*- DR <- MEMORY[contents of baseR + offset*2]
+			*- should set CC 
+	LEA		*- DR <- address of label
+			*- should NOT set CC
+	LSHF	- should left shift SR amount4 times
+			*- should set CC
+	RSHFL	- should right shift SR (logically) amount4 times
+			*- should set CC
+	RSHFA	- should right shift SR (arithmetically) amount4 times
+			- most significant bit should be preserved
+			*- should set CC
+	STB		- should put SR in MEMORY[baseR + offset]
+			*- should NOT set CC
+	STW		- should put SR in MEMORY[baseR + offset*2]
+			*- should NOT set CC
+	TRAP	- PC + 2 should be stored in R7
+			- PC <- MEMORY[vector*2]
+			- vector*2 should be zero-extended not sign-extended
+
+
+	ERRORS?
+		- JMP to odd address?

@@ -534,6 +534,16 @@ void setNZP(int num) {
   }
 }
 
+/* sign extends a 16 bit value to 32 bits */
+int sext32(int val, int nbits) {
+  if (nbits == 16) {
+    if (val & 0x8000) {
+      return (val | 0xFFFF0000);
+    } 
+  }
+  return val;
+}
+
 /* takes 2's complement of constant value if necessary */
 int procTwosComp(int val, int nbits) {
   switch (nbits) {
@@ -581,12 +591,12 @@ void add(int instr) {
 
   if (!(0x0020 & instr)) {    /* if steering bit is 0 */
     sr2 = (instr & 0x0007);
-    sum = CURRENT_LATCHES.REGS[sr1] + CURRENT_LATCHES.REGS[sr2];
+    sum = sext32(CURRENT_LATCHES.REGS[sr1], 16) + sext32(CURRENT_LATCHES.REGS[sr2], 16);
   } else {
     imm = procTwosComp((instr & 0x001F), 5);
-    sum = CURRENT_LATCHES.REGS[sr1] + imm;
+    sum = sext32(CURRENT_LATCHES.REGS[sr1], 16) + imm;
   }
-
+  
   NEXT_LATCHES.REGS[dr] = Low16bits(sum);
   setNZP(sum);
   NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
@@ -601,10 +611,10 @@ void and(int instr) {
 
   if (!(0x0020 & instr)) {    /* if steering bit is 0 */
     sr2 = (instr & 0x0007);
-    res = CURRENT_LATCHES.REGS[sr1] & CURRENT_LATCHES.REGS[sr2];
+    res = sext32(CURRENT_LATCHES.REGS[sr1], 16) & sext32(CURRENT_LATCHES.REGS[sr2], 16);
   } else {
     imm = procTwosComp((instr & 0x001F), 5);
-    res = CURRENT_LATCHES.REGS[sr1] & imm;
+    res = sext32(CURRENT_LATCHES.REGS[sr1], 16) & imm;
   }
 
   NEXT_LATCHES.REGS[dr] = Low16bits(res);
@@ -709,10 +719,10 @@ void not_xor(int instr) {
 
   if (!(instr & 0x0020)) {
     sr2 = instr & 0x0007;
-    temp = CURRENT_LATCHES.REGS[sr1] ^ CURRENT_LATCHES.REGS[sr2];
+    temp = sext32(CURRENT_LATCHES.REGS[sr1], 16) ^ sext32(CURRENT_LATCHES.REGS[sr2], 16);
   } else {
     imm = procTwosComp((instr & 0x001F), 5);
-    temp = CURRENT_LATCHES.REGS[sr1] ^ imm;
+    temp = sext32(CURRENT_LATCHES.REGS[sr1], 16) ^ imm;
   }
 
   NEXT_LATCHES.REGS[dr] = Low16bits(temp);
@@ -729,15 +739,15 @@ void shf(int instr) {
   amount = instr & 0x000F;
 
   if (!(instr & 0x0010)) {
-    temp = CURRENT_LATCHES.REGS[sr] << amount;
+    temp = sext32(CURRENT_LATCHES.REGS[sr], 16) << amount;
   }
 
   else {
     if (!(instr & 0x0020)) {
-      temp = CURRENT_LATCHES.REGS[sr] >> amount;
+      temp = sext32(CURRENT_LATCHES.REGS[sr], 16) >> amount;
     } else {
       int msb = CURRENT_LATCHES.REGS[sr] & 0x8000;
-      temp = CURRENT_LATCHES.REGS[sr] >> amount;
+      temp = sext32(CURRENT_LATCHES.REGS[sr], 16) >> amount;
       temp |= msb;
     }
   }
@@ -759,7 +769,6 @@ void stb(int instr) {
   temp = CURRENT_LATCHES.REGS[sr] & 0x00FF;
   MEMORY[addr >> 1][addr % 2] = temp;
 
-  setNZP(temp);
   NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
 }
 
@@ -781,7 +790,6 @@ void stw(int instr) {
   MEMORY[addr >> 1][0] = temp & 0x00FF;
   MEMORY[addr >> 1][1] = (temp & 0xFF00) >> 8;
 
-  setNZP(temp);
   NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
 }
 
