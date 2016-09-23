@@ -403,18 +403,19 @@ int main(int argc, char *argv[]) {
 /* All code below is original and was written by Joshua Smith */
 #define Low8Bits(x)   (x & 0x00FF)
 
-#define ADD       1
-#define AND       5
 #define BR        0
-#define JMP_RET   12
-#define JSR       4
+#define ADD       1
 #define LDB       2
-#define LDW       6
-#define LEA       14
-#define NOT_XOR   9
-#define SHF       13
 #define STB       3
+#define JSR       4
+#define AND       5
+#define LDW       6
 #define STW       7
+#define RTI       8
+#define NOT_XOR   9
+#define JMP_RET   12
+#define SHF       13
+#define LEA       14
 #define TRAP      15
 
 void add(int instr);
@@ -430,9 +431,14 @@ void shf(int instr);
 void stb(int instr);
 void stw(int instr);
 void trap(int instr);
-void clearNZP(void);
+void rti(int instr);  /* rti instruction for space holding */
+void nop(int instr); /* No op func for space holding */
 void setNZP(int num);
 int procTwosComp(int val, int nbits);
+
+typedef void (*func)(int);
+func INSTR_FUNC_TABLE[] = {branch, add, ldb, stb, jsr, and, ldw, 
+  stw, rti, not_xor, nop, nop, jmp_ret, shf, lea, trap};
 
 void process_instruction() {
   /*  function: process_instruction
@@ -449,67 +455,7 @@ void process_instruction() {
   int instr = Low16bits((iHighB << 8) | iLowB);
 
   int opcode = ((instr & 0xF000) >> 12);
-
-  switch (opcode) {
-  case ADD:
-    add(instr);
-    break;
-
-  case AND:
-    and(instr);
-    break;
-
-  case BR:
-    branch(instr);
-    break;
-
-  case JMP_RET:
-    jmp_ret(instr);
-    break;
-
-  case JSR:
-    jsr(instr);
-    break;
-
-  case LDB:
-    ldb(instr);
-    break;
-
-  case LDW:
-    ldw(instr);
-    break;
-
-  case LEA:
-    lea(instr);
-    break;
-
-  case NOT_XOR:
-    not_xor(instr);
-    break;
-
-  case SHF:
-    shf(instr);
-    break;
-
-  case STB:
-    stb(instr);
-    break;
-
-  case STW:
-    stw(instr);
-    break;
-
-  case TRAP:
-    trap(instr);
-    break;
-  }
-}
-
-/* Sets NZP bits to 0 */
-void clearNZP() {
-  NEXT_LATCHES.N = 0;
-  NEXT_LATCHES.Z = 0;
-  NEXT_LATCHES.P = 0;
+  INSTR_FUNC_TABLE[opcode](instr);
 }
 
 /* Sets the proper NZP bit given the value num */
@@ -536,6 +482,12 @@ void setNZP(int num) {
 
 /* sign extends a 16 bit value to 32 bits */
 int sext32(int val, int nbits) {
+  if (nbits == 8) {
+    if (val & 0x0080) {
+      return (val | 0xFFFFFF00);
+    }
+  }
+
   if (nbits == 16) {
     if (val & 0x8000) {
       return (val | 0xFFFF0000);
@@ -676,7 +628,7 @@ void ldb(int instr) {
   offset = procTwosComp((instr & 0x003F), 6);
 
   addr = (CURRENT_LATCHES.REGS[baseR] + offset);
-  temp = (addr % 2 == 0) ? MEMORY[addr >> 1][0] : MEMORY[addr >> 1][1];
+  temp = (addr % 2 == 0) ? sext32(MEMORY[addr >> 1][0], 8) : sext32(MEMORY[addr >> 1][1], 8);
 
   NEXT_LATCHES.REGS[dr] = Low16bits(temp);
   setNZP(temp);
@@ -743,12 +695,11 @@ void shf(int instr) {
   }
 
   else {
-    if (!(instr & 0x0020)) {
+    if (!(instr & 0x0020)) { /* logical right shift */
+      temp = sext32(CURRENT_LATCHES.REGS[sr], 16) & 0x0000FFFF;
+      temp >>= amount;
+    } else {  /* arithmetic right shift */
       temp = sext32(CURRENT_LATCHES.REGS[sr], 16) >> amount;
-    } else {
-      int msb = CURRENT_LATCHES.REGS[sr] & 0x8000;
-      temp = sext32(CURRENT_LATCHES.REGS[sr], 16) >> amount;
-      temp |= msb;
     }
   }
 
@@ -799,4 +750,8 @@ void trap(int instr) {
   NEXT_LATCHES.REGS[7] = CURRENT_LATCHES.PC + 2;
   NEXT_LATCHES.PC = (MEMORY[vec][0] & 0x000F)|((MEMORY[vec][1] & 0x000F) << 8);
 }
+
+/* Space holders in function table */
+void rti(int instr) {}
+void nop(int instr) {}
 

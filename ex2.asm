@@ -5,18 +5,19 @@
     AND R4, R4, #0
     AND R5, R5, #0
     ADD R3, R3, #3
-    ADD R4, R4, #4
-    JSR M
-    ADD R0, R5, #0
+    ADD R4, R4, #-8
+    LEA R0, M
+    JSRR R0
     
     HALT
 
-M	LSHF R4, R4, #1
+M	RSHFA R4, R4, #1
 	ADD R3, R3, #-1
 	BRnp M
 	RET
 
 
-A   .FILL x4000	
+A   .FILL x4000
+B 	.FILL #-4	
     
     .END

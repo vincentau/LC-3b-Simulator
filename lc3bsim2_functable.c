@@ -431,14 +431,13 @@ void shf(int instr);
 void stb(int instr);
 void stw(int instr);
 void trap(int instr);
-void rti(int instr);
+void rti(int instr);  /* rti instruction for space holding */
 void nop(int instr); /* No op func for space holding */
-void clearNZP(void);
 void setNZP(int num);
 int procTwosComp(int val, int nbits);
 
 typedef void (*func)(int);
-func instrtable[] = {branch, add, ldb, stb, jsr, and, ldw, 
+func INSTR_FUNC_TABLE[] = {branch, add, ldb, stb, jsr, and, ldw, 
   stw, rti, not_xor, nop, nop, jmp_ret, shf, lea, trap};
 
 void process_instruction() {
@@ -456,14 +455,7 @@ void process_instruction() {
   int instr = Low16bits((iHighB << 8) | iLowB);
 
   int opcode = ((instr & 0xF000) >> 12);
-  instrtable[opcode](instr);
-}
-
-/* Sets NZP bits to 0 */
-void clearNZP() {
-  NEXT_LATCHES.N = 0;
-  NEXT_LATCHES.Z = 0;
-  NEXT_LATCHES.P = 0;
+  INSTR_FUNC_TABLE[opcode](instr);
 }
 
 /* Sets the proper NZP bit given the value num */
@@ -490,6 +482,12 @@ void setNZP(int num) {
 
 /* sign extends a 16 bit value to 32 bits */
 int sext32(int val, int nbits) {
+  if (nbits == 8) {
+    if (val & 0x0080) {
+      return (val | 0xFFFFFF00);
+    }
+  }
+
   if (nbits == 16) {
     if (val & 0x8000) {
       return (val | 0xFFFF0000);
@@ -630,7 +628,7 @@ void ldb(int instr) {
   offset = procTwosComp((instr & 0x003F), 6);
 
   addr = (CURRENT_LATCHES.REGS[baseR] + offset);
-  temp = (addr % 2 == 0) ? MEMORY[addr >> 1][0] : MEMORY[addr >> 1][1];
+  temp = (addr % 2 == 0) ? sext32(MEMORY[addr >> 1][0], 8) : sext32(MEMORY[addr >> 1][1], 8);
 
   NEXT_LATCHES.REGS[dr] = Low16bits(temp);
   setNZP(temp);
@@ -697,12 +695,11 @@ void shf(int instr) {
   }
 
   else {
-    if (!(instr & 0x0020)) {
+    if (!(instr & 0x0020)) { /* logical right shift */
+      temp = sext32(CURRENT_LATCHES.REGS[sr], 16) & 0x0000FFFF;
+      temp >>= amount;
+    } else {  /* arithmetic right shift */
       temp = sext32(CURRENT_LATCHES.REGS[sr], 16) >> amount;
-    } else {
-      int msb = CURRENT_LATCHES.REGS[sr] & 0x8000;
-      temp = sext32(CURRENT_LATCHES.REGS[sr], 16) >> amount;
-      temp |= msb;
     }
   }
 
@@ -754,6 +751,7 @@ void trap(int instr) {
   NEXT_LATCHES.PC = (MEMORY[vec][0] & 0x000F)|((MEMORY[vec][1] & 0x000F) << 8);
 }
 
+/* Space holders in function table */
 void rti(int instr) {}
 void nop(int instr) {}
 

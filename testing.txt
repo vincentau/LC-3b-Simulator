@@ -36,16 +36,16 @@
 			*- should set CC
 	RSHFL	- should right shift SR (logically) amount4 times
 			*- should set CC
-	RSHFA	- should right shift SR (arithmetically) amount4 times
-			- most significant bit should be preserved
+	RSHFA	*- should right shift SR (arithmetically) amount4 times
+			*- most significant bit should be preserved
 			*- should set CC
 	STB		*- should put SR in MEMORY[baseR + offset]
 			*- should NOT set CC
 	STW		*- should put SR in MEMORY[baseR + offset*2]
 			*- should NOT set CC
-	TRAP	- PC + 2 should be stored in R7
-			- PC <- MEMORY[vector*2]
-			- vector*2 should be zero-extended not sign-extended
+	TRAP	*- PC + 2 should be stored in R7
+			*- PC <- MEMORY[vector*2]
+			*- vector*2 should be zero-extended not sign-extended
 
 
 	ERRORS?

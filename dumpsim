@@ -1,15 +1,31 @@
 
 Current register/bus values :
 -------------------------------------
+Instruction Count : 8
+PC                : 0x4012
+CCs: N = 1  Z = 0  P = 0
+Registers:
+0: 0x4012
+1: 0x0000
+2: 0x0000
+3: 0x0003
+4: 0xfff8
+5: 0x0000
+6: 0x0000
+7: 0x4010
+
+
+Current register/bus values :
+-------------------------------------
 Instruction Count : 19
 PC                : 0x0000
 CCs: N = 0  Z = 1  P = 0
 Registers:
-0: 0x0000
+0: 0x4012
 1: 0x0000
 2: 0x0000
 3: 0x0000
-4: 0x0020
+4: 0xffff
 5: 0x0000
 6: 0x0000
 7: 0x4012
