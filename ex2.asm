@@ -11,7 +11,7 @@
     
     HALT
 
-M	ADD R5, R5, R4
+M	LSHF R4, R4, #1
 	ADD R3, R3, #-1
 	BRnp M
 	RET

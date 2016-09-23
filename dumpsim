@@ -3,14 +3,14 @@ Current register/bus values :
 -------------------------------------
 Instruction Count : 19
 PC                : 0x0000
-CCs: N = 0  Z = 0  P = 1
+CCs: N = 0  Z = 1  P = 0
 Registers:
-0: 0x000c
+0: 0x0000
 1: 0x0000
 2: 0x0000
 3: 0x0000
-4: 0x0004
-5: 0x000c
+4: 0x0020
+5: 0x0000
 6: 0x0000
 7: 0x4012
 
