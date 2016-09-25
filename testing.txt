@@ -22,19 +22,19 @@
 	RET 	*- PC should be given contents of R7
 	JSR 	*- PC + 2 should be saved in R7
 			*- PC should equal PC + 2 + offset*2  
-	JSRR	- PC + 2 should be saved in R7
-			- PC should equal the contents of base register
-	LDB		- DR <- MEMORY[contents of baseR + offset]
-			- should successfully load negative values
+	JSRR	+- PC + 2 should be saved in R7
+			+- PC should equal the contents of base register
+	LDB		*- DR <- MEMORY[contents of baseR + offset]
+			*- should successfully load negative values
 			*- should set CC
 	LDW		*- DR <- MEMORY[contents of baseR + offset*2]
-			- should successfully load negative values
+			*- should successfully load negative values
 			*- should set CC 
 	LEA		*- DR <- address of label
 			*- should NOT set CC
 	LSHF	*- should left shift SR amount4 times
 			*- should set CC
-	RSHFL	- should right shift SR (logically) amount4 times
+	RSHFL	?- should right shift SR (logically) amount4 times
 			*- should set CC
 	RSHFA	*- should right shift SR (arithmetically) amount4 times
 			*- most significant bit should be preserved

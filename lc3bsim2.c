@@ -576,19 +576,26 @@ void and(int instr) {
 
 /* BR instruction simulation */
 void branch(int instr) {
+  int temp;
   int offset = procTwosComp((instr & 0x01FF), 9);
+  int n = (instr >> 11) & 0x01;
+  int z = (instr >> 10) & 0x01;
+  int p = (instr >> 9) & 0x01;
 
   /* branch if any CC's are met */
-  if (((instr & 0x0800) && CURRENT_LATCHES.N) || ((instr & 0x0400) && CURRENT_LATCHES.Z)
-    || ((instr & 0x0200) && CURRENT_LATCHES.P)) {
-    NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2 + (offset << 1);
+  /* pretty way (not sure if working) */
+  if ((n && CURRENT_LATCHES.N)||(z && CURRENT_LATCHES.Z)||(p && CURRENT_LATCHES.P)) {
+    NEXT_LATCHES.PC = (CURRENT_LATCHES.PC + 2) + (offset << 1);
   }
 
-  /* unconditional branch (BR or BRnzp) */
-  else if ((!(instr & 0x0800) && !(instr & 0x0400) && !(instr & 0x0200))
-    || ((instr & 0x0800) && (instr & 0x0400) && (instr & 0x0200))) {
-    NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2 + (offset << 1);
-  }
+  /* Ugly way, pretty sure it works
+  if (n == 1 && CURRENT_LATCHES.N == 1) {
+    temp = (CURRENT_LATCHES.PC + 2) + (offset << 1);
+  } else if (z == 1 && CURRENT_LATCHES.Z == 1) {
+    temp = (CURRENT_LATCHES.PC + 2) + (offset << 1);
+  } else if (p == 1 && CURRENT_LATCHES.P == 1) {
+    temp = (CURRENT_LATCHES.PC + 2) + (offset << 1);
+  } */
 
   else {
     NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
@@ -643,7 +650,7 @@ void ldw(int instr) {
   baseR = (instr & 0x01C0) >> 6;
   offset = procTwosComp((instr & 0x003F), 6);
 
-  addr = Low16bits((CURRENT_LATCHES.REGS[baseR] + (offset << 1)));
+  addr = (CURRENT_LATCHES.REGS[baseR] + (offset << 1));
   temp = MEMORY[addr >> 1][0] + (MEMORY[addr >> 1][1] << 8);
 
   NEXT_LATCHES.REGS[dr] = Low16bits(temp);
@@ -690,7 +697,7 @@ void shf(int instr) {
   sr = (instr & 0x01C0) >> 6;
   amount = instr & 0x000F;
 
-  if (!(instr & 0x0010)) {
+  if ((instr >> 4) & 0x01 == 0) {
     temp = sext32(CURRENT_LATCHES.REGS[sr], 16) << amount;
   }
 
@@ -718,7 +725,7 @@ void stb(int instr) {
 
   addr = CURRENT_LATCHES.REGS[baseR] + offset;
   temp = CURRENT_LATCHES.REGS[sr] & 0x00FF;
-  MEMORY[addr >> 1][addr % 2] = temp;
+  MEMORY[addr >> 1][addr % 2] = Low16Bits(temp);
 
   NEXT_LATCHES.PC = CURRENT_LATCHES.PC + 2;
 }
